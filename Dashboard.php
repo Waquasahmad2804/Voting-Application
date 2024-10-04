@@ -44,19 +44,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['candidate_id'])) {
         $updateStatusStmt = $conn->prepare("UPDATE userdetail SET status = 1 WHERE id = :user_id");
         $updateStatusStmt->execute(['user_id' => $user_id]);
 
-        $hasVoted = true; // User has successfully voted
+        $hasVoted = true; 
     } else {
-        $hasVoted = true; // User has already voted
+        $hasVoted = true; 
     }
 }
 
-// Check if the user has voted to set the voting button state
+
 if ($userData['status'] == 1) {
-    $hasVoted = true; // User has already voted
+    $hasVoted = true; 
 }
 
 if (isset($_GET['logout'])) {
-    session_destroy(); // Make sure to destroy the session
+    session_destroy(); 
     header("Location: index.php");
     exit();
 }
