@@ -1,6 +1,14 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 include("api/connect.php");
 session_start();
+
+// Function to safely get values
+function safe_get($array, $key, $default = 'N/A') {
+    return isset($array[$key]) ? htmlspecialchars($array[$key]) : $default;
+}
 
 if (!isset($_SESSION['voter'])) {
     header("Location: ../");
@@ -109,7 +117,7 @@ if (isset($_GET['logout'])) {
                             </div>
                         </div>
                     <?php endforeach; ?>
-                    <input class="btn btn-primary vote-button" type="submit" value="Vote" <?php echo $hasVoted ? 'disabled' : ''; ?>>
+                    <input class="btn btn-primary vote-button" type="submit" value="Vote">
                 <?php endif; ?>
             </form>
 
