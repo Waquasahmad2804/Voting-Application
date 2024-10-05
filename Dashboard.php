@@ -20,38 +20,21 @@ $stmt = $conn->prepare("
 $stmt->execute();
 $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Function to safely get values
-function safe_get($array, $key, $default = 'N/A') {
-    return isset($array[$key]) ? htmlspecialchars($array[$key]) : $default;
-}
-
 // Handle voting
-$hasVoted = false;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['candidate_id'])) {
+$hasVoted = $userData['status'] == 1;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['candidate_id']) && !$hasVoted) {
     $candidate_id = $_POST['candidate_id'];
     $user_id = $userData['id'];
 
-    // Check if the user has already voted
-    $checkVoteStmt = $conn->prepare("SELECT * FROM votes WHERE user_id = :user_id");
-    $checkVoteStmt->execute(['user_id' => $user_id]);
+    // Register the vote
+    $voteStmt = $conn->prepare("INSERT INTO votes (user_id, candidate_id) VALUES (:user_id, :candidate_id)");
+    $voteStmt->execute(['user_id' => $user_id, 'candidate_id' => $candidate_id]);
 
-    if ($checkVoteStmt->rowCount() === 0) {
-        // Register the vote
-        $voteStmt = $conn->prepare("INSERT INTO votes (user_id, candidate_id) VALUES (:user_id, :candidate_id)");
-        $voteStmt->execute(['user_id' => $user_id, 'candidate_id' => $candidate_id]);
+    // Update the voter's status to 1
+    $updateStatusStmt = $conn->prepare("UPDATE userdetail SET status = 1 WHERE id = :user_id");
+    $updateStatusStmt->execute(['user_id' => $user_id]);
 
-        // Update the voter's status to 1
-        $updateStatusStmt = $conn->prepare("UPDATE userdetail SET status = 1 WHERE id = :user_id");
-        $updateStatusStmt->execute(['user_id' => $user_id]);
-
-        $hasVoted = true; 
-    } else {
-        $hasVoted = true; 
-    }
-}
-
-
-if ($userData['status'] == 1) {
     $hasVoted = true; 
 }
 
@@ -74,22 +57,11 @@ if (isset($_GET['logout'])) {
         body {
             font-family: 'Arial', sans-serif;
         }
-        #profile-detail, #group-detail {
+        #profile-detail {
             border: 2px solid black;
             padding: 20px;
-            margin-bottom: 20px;
             border-radius: 8px;
-        }
-        #group-detail {
-            display: flex;
-            align-items: center;
-        }
-        #group-detail img {
-            margin-right: 15px;
-            border-radius: 50%;
-        }
-        .vote-button {
-            margin-top: 15px;
+            margin-bottom: 20px;
         }
         .alert {
             margin-top: 20px;
@@ -100,9 +72,10 @@ if (isset($_GET['logout'])) {
 <body>
 <div class="container">
     <div class="row align-items-center">
-       <form action="" method="get"> 
-           <button class="my-3 btn btn-primary" name="logout" id="logout-button">Logout</button>
-       </form>
+        <form action="" method="get"> 
+            <button class="my-3 btn btn-primary" name="logout" id="logout-button">Logout</button>
+        </form>
+
         <!-- User Profile -->
         <div class="text-start my-5" id="profile-detail">
             <div style="text-align:start; margin-top:10px"> 
@@ -118,30 +91,34 @@ if (isset($_GET['logout'])) {
             <b>Name:</b> <?php echo $userData['firstname'] . " " . $userData['lastname']; ?><br>
             <b>Mobile:</b> <?php echo $userData['phoneNo']; ?> <br>
             <b>Address:</b> <?php echo $userData['address']; ?> <br><br>
-            <b>Status:</b> <?php echo $userData['status']; ?> <br><br>
         </div>
 
-        <!-- Voting Form -->
-        <form method="POST">
-            <h3>Select a Candidate to Vote</h3>
-            <?php if ($candidates): 
-                foreach ($candidates as $groupData): ?>
-                    <div id="group-detail">
-                        <img src="<?php echo htmlspecialchars($groupData['photo']); ?>" alt="Group Photo" style="width: 100px;">
-                        <div class="text-start">
-                            <b>Name:</b> <?php echo safe_get($groupData, 'firstname') . " " . safe_get($groupData, 'lastname'); ?><br>
-                            <b>Votes:</b> <?php echo safe_get($groupData, 'vote_count'); ?><br>
-                            <input type="radio" name="candidate_id" value="<?php echo $groupData['id']; ?>" required>
-                            <label>Vote for this candidate</label>
+        <?php if (!$hasVoted): // Only show voting section if the user hasn't voted ?>
+            <!-- Voting Form -->
+            <form method="POST">
+                <h3>Select a Candidate to Vote</h3>
+                <?php if ($candidates): 
+                    foreach ($candidates as $groupData): ?>
+                        <div id="group-detail">
+                            <img src="<?php echo htmlspecialchars($groupData['photo']); ?>" alt="Group Photo" style="width: 100px;">
+                            <div class="text-start">
+                                <b>Name:</b> <?php echo safe_get($groupData, 'firstname') . " " . safe_get($groupData, 'lastname'); ?><br>
+                                <b>Votes:</b> <?php echo safe_get($groupData, 'vote_count'); ?><br>
+                                <input type="radio" name="candidate_id" value="<?php echo $groupData['id']; ?>" required>
+                                <label>Vote for this candidate</label>
+                            </div>
                         </div>
-                    </div>
-                <?php endforeach; ?>
-                <input class="btn btn-primary vote-button" type="submit" value="Vote" <?php echo $hasVoted ? 'disabled' : ''; ?>>
-            <?php endif; ?>
-        </form>
+                    <?php endforeach; ?>
+                    <input class="btn btn-primary vote-button" type="submit" value="Vote" <?php echo $hasVoted ? 'disabled' : ''; ?>>
+                <?php endif; ?>
+            </form>
 
-        <?php if ($hasVoted): ?>
-            <div class="alert">Thank you for voting! You can't vote again.</div>
+            <?php if ($hasVoted): ?>
+                <div class="alert">Thank you for voting! You can't vote again.</div>
+            <?php endif; ?>
+
+        <?php else: // Show confirmation message if the user has voted ?>
+            <div class="alert">Thank you for voting! Your vote has been recorded.</div>
         <?php endif; ?>
     </div>
 </div>
