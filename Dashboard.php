@@ -35,15 +35,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['candidate_id']) && !$
     $candidate_id = $_POST['candidate_id'];
     $user_id = $userData['id'];
 
-    // Register the vote
-    $voteStmt = $conn->prepare("INSERT INTO votes (user_id, candidate_id) VALUES (:user_id, :candidate_id)");
-    $voteStmt->execute(['user_id' => $user_id, 'candidate_id' => $candidate_id]);
+    try {
+        // Register the vote
+        $voteStmt = $conn->prepare("INSERT INTO votes (user_id, candidate_id) VALUES (:user_id, :candidate_id)");
+        $voteStmt->execute(['user_id' => $user_id, 'candidate_id' => $candidate_id]);
 
-    // Update the voter's status to 1
-    $updateStatusStmt = $conn->prepare("UPDATE userdetail SET status = 1 WHERE id = :user_id");
-    $updateStatusStmt->execute(['user_id' => $user_id]);
+        // Update the voter's status to 1
+        $updateStatusStmt = $conn->prepare("UPDATE userdetail SET status = 1 WHERE id = :user_id");
+        $updateStatusStmt->execute(['user_id' => $user_id]);
 
-    $hasVoted = true; 
+        $hasVoted = true; 
+    } catch (PDOException $e) {
+        echo "Error: " . $e->getMessage();
+    }
 }
 
 if (isset($_GET['logout'])) {
@@ -62,18 +66,107 @@ if (isset($_GET['logout'])) {
     <link href="bootstrap.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
     <style>
+        /* Global Styles */
         body {
             font-family: 'Arial', sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            line-height: 1.6;
         }
-        #profile-detail {
-            border: 2px solid black;
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
             padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
         }
-        .alert {
+        /* Header and Navigation */
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        #logout-button {
+            background-color: #e74c3c;
+            border: none;
+            padding: 10px 20px;
+            color: white;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        #logout-button:hover {
+            background-color: #c0392b;
+        }
+        /* User Profile */
+        #profile-detail {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        #user-image {
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #3498db;
+        }
+        /* Voting Section */
+        #group-detail {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            transition: box-shadow 0.3s ease;
+        }
+        #group-detail:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        #group-detail img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin-right: 20px;
+        }
+        .vote-button {
+            background-color: #2ecc71;
+            border: none;
+            padding: 12px 25px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1em;
             margin-top: 20px;
-            color: green;
+            transition: background-color 0.3s ease;
+        }
+        .vote-button:hover {
+            background-color: #27ae60;
+        }
+        /* Alert Messages */
+        .alert {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            #group-detail {
+                flex-direction: column;
+                text-align: center;
+            }
+            #group-detail img {
+                margin-right: 0;
+                margin-bottom: 15px;
+            }
         }
     </style>
 </head>
@@ -108,7 +201,7 @@ if (isset($_GET['logout'])) {
                 <?php if ($candidates): 
                     foreach ($candidates as $groupData): ?>
                         <div id="group-detail">
-                            <img src="<?php echo htmlspecialchars($groupData['photo']); ?>" alt="Group Photo" style="width: 100px;">
+                            <img src="<?php echo htmlspecialchars($groupData['photo']); ?>" alt="Candidate Photo">
                             <div class="text-start">
                                 <b>Name:</b> <?php echo safe_get($groupData, 'firstname') . " " . safe_get($groupData, 'lastname'); ?><br>
                                 <b>Votes:</b> <?php echo safe_get($groupData, 'vote_count'); ?><br>
@@ -118,6 +211,8 @@ if (isset($_GET['logout'])) {
                         </div>
                     <?php endforeach; ?>
                     <input class="btn btn-primary vote-button" type="submit" value="Vote">
+                <?php else: ?>
+                    <div class="alert">No candidates available for voting.</div>
                 <?php endif; ?>
             </form>
 
